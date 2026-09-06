@@ -1,0 +1,4 @@
+# Host-side: estimator, CLI, process-mode training, tests
+-r requirements-train.txt
+sagemaker==2.242.0
+pytest==8.3.5

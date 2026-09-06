@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Churn scoring client</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #1b1714;
+      --paper: #26211c;
+      --ink: #f3ebe3;
+      --mute: #b7a99a;
+      --line: #3a322b;
+      --copper: #e08a3c;
+      --mint: #7dcaa4;
+      --bad: #e07070;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; color: var(--ink);
+      background: radial-gradient(800px 360px at 0% 0%, #3a2a1c 0%, transparent 55%), var(--bg);
+      font-family: "IBM Plex Sans", system-ui, sans-serif;
+    }
+    .wrap { max-width: 720px; margin: 0 auto; padding: 32px 20px 64px; }
+    .kicker { font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--copper); font-weight: 600; }
+    h1 { margin: 6px 0 8px; font-size: 32px; letter-spacing: -0.03em; }
+    .lede { color: var(--mute); max-width: 38rem; }
+    .pill {
+      display: inline-flex; gap: 8px; align-items: center; margin-top: 14px;
+      padding: 6px 10px; border: 1px solid var(--line); border-radius: 999px;
+      font-size: 12px; color: var(--mute);
+    }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
+    .ok .dot { background: var(--mint); }
+    .bad .dot { background: var(--bad); }
+    form, .out {
+      margin-top: 22px; background: var(--paper); border: 1px solid var(--line);
+      border-radius: 14px; padding: 16px;
+    }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: var(--mute); }
+    input {
+      width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line);
+      background: #1b1714; color: var(--ink); font: inherit;
+    }
+    button {
+      margin-top: 14px; width: 100%; padding: 11px; border: 0; border-radius: 10px;
+      background: var(--copper); color: #1b1714; font: inherit; font-weight: 700; cursor: pointer;
+    }
+    .num { font-size: 36px; font-weight: 700; letter-spacing: -0.03em; }
+    .action { color: var(--copper); font-weight: 600; margin-top: 6px; }
+    .err { color: var(--bad); font-size: 13px; margin-top: 10px; }
+    .meta { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--mute); margin-top: 10px; }
+    a { color: var(--copper); }
+    @media (max-width: 700px) { .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <p class="kicker">Downstream client</p>
+    <h1>Score an account</h1>
+    <p class="lede">
+      This app does not train. It loads the registered <code>churn</code> model from MLflow
+      and returns P(churn) plus a retention action. Train first in the
+      <a href="http://localhost:8088">FLO-ML console</a>.
+    </p>
+    <div class="pill" id="status"><span class="dot"></span>checking model…</div>
+    <form id="form" class="grid"></form>
+    <button type="button" id="go">Score with registered model</button>
+    <p class="err" id="err"></p>
+    <div class="out" id="out" hidden></div>
+  </div>
+  <script>
+    const FIELDS = [
+      ["tenure_months", 14],
+      ["monthly_charges", 70.9],
+      ["total_charges", 843.71],
+      ["contract_month_to_month", 1],
+      ["has_fiber", 1],
+      ["support_tickets", 4],
+      ["late_payments", 3],
+      ["addon_count", 0],
+    ];
+    const form = document.getElementById("form");
+    form.innerHTML = FIELDS.map(([k, v]) =>
+      `<div><label for="${k}">${k}</label><input id="${k}" name="${k}" type="number" step="any" value="${v}" /></div>`
+    ).join("");
+
+    async function refresh() {
+      const pill = document.getElementById("status");
+      try {
+        const h = await (await fetch("/health")).json();
+        pill.className = "pill " + (h.loaded ? "ok" : "bad");
+        pill.lastChild.replaceWith(document.createTextNode(
+          h.loaded ? " model loaded" : " waiting for a trained model"
+        ));
+      } catch {
+        pill.className = "pill bad";
+      }
+    }
+
+    document.getElementById("go").onclick = async () => {
+      document.getElementById("err").textContent = "";
+      const features = {};
+      for (const [k] of FIELDS) features[k] = Number(document.getElementById(k).value);
+      try {
+        const res = await fetch("/v1/score", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ features }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail));
+        const out = document.getElementById("out");
+        out.hidden = false;
+        out.innerHTML = `<div class="num">${(data.churn_probability * 100).toFixed(1)}%</div>
+          <div>${data.label}</div>
+          <div class="action">${data.action} — ${data.action_reason}</div>
+          <div class="meta">${data.model_uri}</div>`;
+        refresh();
+      } catch (e) {
+        document.getElementById("err").textContent = e.message;
+      }
+    };
+    refresh();
+  </script>
+</body>
+</html>

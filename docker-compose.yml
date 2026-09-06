@@ -1,0 +1,158 @@
+# FLO-ML local-first stack. `docker compose up --build` from the repo root.
+# Floci = local AWS (S3/IAM/ECR/logs). MLflow = tracking + registry.
+# Training compute is NOT Floci — it is Docker / SageMaker Local Mode on the host.
+name: flo-ml
+
+services:
+  floci:
+    image: floci/floci:latest
+    ports:
+      - "4566:4566"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - floci-data:/app/data
+    environment:
+      FLOCI_HOSTNAME: floci
+      FLOCI_BASE_URL: http://floci:4566
+      FLOCI_DEFAULT_REGION: us-east-1
+      FLOCI_DEFAULT_ACCOUNT_ID: "000000000000"
+      FLOCI_STORAGE_MODE: persistent
+      FLOCI_STORAGE_PERSISTENT_PATH: /app/data
+      FLOCI_SERVICES_DOCKER_NETWORK: flo-ml
+      FLOCI_SERVICES_S3_GLOBAL_BUCKET_NAMESPACE: "true"
+    networks:
+      default:
+        aliases:
+          - floci
+          - s3.floci
+    restart: unless-stopped
+
+  bootstrap:
+    build:
+      context: .
+      dockerfile: docker/bootstrap/Dockerfile
+    image: flo-ml/bootstrap:local
+    environment:
+      AWS_ENDPOINT_URL: http://floci:4566
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_EC2_METADATA_DISABLED: "true"
+      AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+      AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+      FLOCI_WAIT_SECONDS: "90"
+    depends_on:
+      - floci
+    restart: "no"
+
+  mlflow:
+    build:
+      context: ./docker/mlflow
+      dockerfile: Dockerfile
+    image: flo-ml/mlflow:local
+    ports:
+      - "5000:5000"
+    volumes:
+      - mlflow-db:/mlflow
+    environment:
+      AWS_ENDPOINT_URL: http://floci:4566
+      MLFLOW_S3_ENDPOINT_URL: http://floci:4566
+      MLFLOW_S3_IGNORE_TLS: "true"
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_EC2_METADATA_DISABLED: "true"
+      AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+      AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+    command:
+      - server
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "5000"
+      - --backend-store-uri
+      - sqlite:////mlflow/mlflow.db
+      - --artifacts-destination
+      - s3://mlflow-artifacts
+      - --serve-artifacts
+      - --allowed-hosts
+      - "*"
+      - --cors-allowed-origins
+      - "*"
+      - --disable-security-middleware
+    depends_on:
+      bootstrap:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  trainer:
+    build:
+      context: .
+      dockerfile: docker/train/Dockerfile
+    image: flo-ml/sklearn-train:local
+    profiles: ["train"]
+    environment:
+      AWS_ENDPOINT_URL: http://floci:4566
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+    depends_on:
+      mlflow:
+        condition: service_healthy
+    networks:
+      - default
+
+  console:
+    build:
+      context: .
+      dockerfile: docker/ui/Dockerfile
+    image: flo-ml/console:local
+    ports:
+      - "8088:8088"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      AWS_ENDPOINT_URL: http://floci:4566
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_EC2_METADATA_DISABLED: "true"
+      AWS_S3_ADDRESSING_STYLE: path
+      AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+      AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      TRAIN_IMAGE: flo-ml/sklearn-train:local
+      COMPOSE_NETWORK: flo-ml
+      FLO_ML_PUBLIC_MLFLOW: http://localhost:5000
+      FLO_ML_PUBLIC_FLOCI: http://localhost:4566
+      FLO_ML_PUBLIC_SCORER: http://localhost:8090
+      SCORER_HEALTH_URL: http://scorer:8090/health
+      ENV_NAME: local
+    depends_on:
+      mlflow:
+        condition: service_healthy
+    restart: unless-stopped
+
+  scorer:
+    build:
+      context: .
+      dockerfile: docker/scorer/Dockerfile
+    image: flo-ml/scorer:local
+    ports:
+      - "8090:8090"
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      MODEL_NAME: churn
+      MODEL_STAGE: staging
+      AWS_EC2_METADATA_DISABLED: "true"
+      GIT_PYTHON_REFRESH: quiet
+    depends_on:
+      mlflow:
+        condition: service_healthy
+    restart: unless-stopped
+
+networks:
+  default:
+    name: flo-ml
+
+volumes:
+  floci-data:
+  mlflow-db:

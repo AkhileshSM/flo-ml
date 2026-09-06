@@ -1,0 +1,29 @@
+# Executable environment contract — AWS outer loop (product plan §6.3)
+# Fill MLFLOW_TRACKING_URI and role/image from the real account. Never commit keys.
+env_name: aws
+aws_endpoint_url: null
+aws_container_endpoint_url: null
+aws_access_key_id: null
+aws_secret_access_key: null
+aws_region: us-east-1
+aws_s3_addressing_style: auto
+mlflow_tracking_uri: ${MLFLOW_TRACKING_URI}
+mlflow_container_tracking_uri: ${MLFLOW_TRACKING_URI}
+s3_data_uri: ${S3_DATA_URI}
+s3_valid_uri: ${S3_VALID_URI}
+s3_model_uri: ${S3_MODEL_URI}
+s3_artifact_uri: ${MLFLOW_ARTIFACT_BUCKET}
+sagemaker_instance: ml.m5.xlarge
+role_arn: ${SAGEMAKER_ROLE_ARN}
+image: ${TRAIN_IMAGE}
+compose_network: null
+experiment: churn
+model_name: churn
+project: churn
+register_stage: Staging
+allow_production_register: true
+hyperparameters:
+  max_depth: 3
+  learning_rate: 0.08
+  max_iter: 80
+  l2_regularization: 0.1

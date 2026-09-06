@@ -1,0 +1,46 @@
+name: local-smoke
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install host deps
+        run: pip install -r requirements-train.txt pytest
+      - name: Unit tests
+        run: python -m pytest
+      - name: Compose config
+        run: docker compose config >/dev/null
+      - name: Start local stack
+        run: docker compose up -d --build
+      - name: Wait for MLflow
+        run: |
+          for i in $(seq 1 60); do
+            curl -fsS http://localhost:5000/health && exit 0
+            sleep 2
+          done
+          docker compose logs
+          exit 1
+      - name: Smoke train
+        env:
+          AWS_ENDPOINT_URL: http://localhost:4566
+          AWS_ACCESS_KEY_ID: test
+          AWS_SECRET_ACCESS_KEY: test
+          AWS_DEFAULT_REGION: us-east-1
+          AWS_EC2_METADATA_DISABLED: "true"
+          MLFLOW_TRACKING_URI: http://localhost:5000
+          ENV_NAME: local
+        run: bash scripts/smoke.sh
+      - name: Logs on failure
+        if: failure()
+        run: docker compose logs
+      - name: Tear down
+        if: always()
+        run: docker compose down -v

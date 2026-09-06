@@ -1,0 +1,5 @@
+-r requirements-train.txt
+fastapi==0.115.12
+uvicorn[standard]==0.34.2
+docker==7.1.0
+python-multipart==0.0.20

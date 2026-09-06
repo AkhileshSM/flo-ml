@@ -1,0 +1,22 @@
+[
+  {
+    "tenure_months": 14,
+    "monthly_charges": 70.9,
+    "total_charges": 843.71,
+    "contract_month_to_month": 1,
+    "has_fiber": 1,
+    "support_tickets": 4,
+    "late_payments": 3,
+    "addon_count": 0
+  },
+  {
+    "tenure_months": 13,
+    "monthly_charges": 60.99,
+    "total_charges": 673.94,
+    "contract_month_to_month": 0,
+    "has_fiber": 0,
+    "support_tickets": 1,
+    "late_payments": 1,
+    "addon_count": 5
+  }
+]

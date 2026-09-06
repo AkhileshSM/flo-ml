@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "FLO-ML Workbench Architecture",
+    "quality_profile": "showcase"
+  },
+  "components": [
+    { "id": "user", "type": "external", "label": "User", "sublabel": "Browser / CLI", "pos": [50, 300], "size": [120, 60] },
+    { "id": "console", "type": "frontend", "label": "FLO-ML Console", "sublabel": "Control Surface :8088", "pos": [250, 300], "size": [140, 60] },
+    { "id": "trainer", "type": "backend", "label": "Training Engine", "sublabel": "src/train.py", "pos": [480, 300], "size": [140, 60] },
+    { "id": "mlflow", "type": "backend", "label": "MLflow Server", "sublabel": "Tracking & Registry :5000", "pos": [710, 300], "size": [140, 60] },
+    { "id": "floci", "type": "cloud", "label": "Floci S3", "sublabel": "Local AWS Emulator :4566", "pos": [480, 550], "size": [140, 60] },
+    { "id": "scorer", "type": "backend", "label": "Scoring Client", "sublabel": "Inference API :8090", "pos": [710, 550], "size": [140, 60] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Local MLOps Stack", "wraps": ["console", "trainer", "mlflow", "floci", "scorer"] }
+  ],
+  "connections": [
+    { "id": "user-to-console", "from": "user", "to": "console", "label": "Manage Pipeline", "variant": "emphasis" },
+    { "id": "user-to-scorer", "from": "user", "to": "scorer", "label": "Get Prediction", "variant": "emphasis", "fromSide": "bottom", "toSide": "bottom", "via": [[110, 650], [780, 650]] },
+    { "id": "console-to-trainer", "from": "console", "to": "trainer", "label": "Trigger Train" },
+    { "id": "trainer-to-floci", "from": "trainer", "to": "floci", "label": "S3 I/O (Datasets/Models)", "variant": "dashed", "labelDy": 24 },
+    { "id": "trainer-to-mlflow", "from": "trainer", "to": "mlflow", "label": "Log Metrics / Register", "variant": "emphasis", "labelAt": [665, 374] },
+    { "id": "scorer-to-mlflow", "from": "scorer", "to": "mlflow", "label": "Load Registered Model", "variant": "dashed", "labelDx": 60 }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Control & Train", "items": ["Console triggers training runs", "Trainer uses SageMaker-shaped entry points"] },
+    { "dot": "emerald", "title": "Storage & Tracking", "items": ["Floci emulates S3 for artifacts", "MLflow tracks experiment lineage"] },
+    { "dot": "rose", "title": "Inference", "items": ["Scoring client decouples training from prediction", "Registered models are promoted to Staging"] }
+  ]
+}

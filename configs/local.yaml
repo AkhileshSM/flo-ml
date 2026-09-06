@@ -1,0 +1,28 @@
+# Executable environment contract — local inner loop (product plan §6.3)
+env_name: local
+aws_endpoint_url: http://localhost:4566
+aws_container_endpoint_url: http://floci:4566
+aws_access_key_id: test
+aws_secret_access_key: test
+aws_region: us-east-1
+aws_s3_addressing_style: path
+mlflow_tracking_uri: http://localhost:5000
+mlflow_container_tracking_uri: http://mlflow:5000
+s3_data_uri: s3://datasets/churn/train/
+s3_valid_uri: s3://datasets/churn/valid/
+s3_model_uri: s3://models/churn/
+s3_artifact_uri: s3://mlflow-artifacts
+sagemaker_instance: local
+role_arn: arn:aws:iam::000000000000:role/SageMakerExecutionRole
+image: flo-ml/sklearn-train:local
+compose_network: flo-ml
+experiment: churn
+model_name: churn
+project: churn
+register_stage: Staging
+allow_production_register: false
+hyperparameters:
+  max_depth: 3
+  learning_rate: 0.08
+  max_iter: 80
+  l2_regularization: 0.1

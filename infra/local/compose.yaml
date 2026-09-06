@@ -1,0 +1,4 @@
+# Product-plan path. Runtime compose is the repo-root docker-compose.yml
+# so `docker compose up --build` works without extra -f flags.
+include:
+  - path: ../../docker-compose.yml

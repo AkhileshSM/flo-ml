@@ -1,0 +1,62 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  FLO-ML SageMaker execution role. Same shape as the Floci local role
+  SageMakerExecutionRole — S3 on datasets/models/mlflow-artifacts, logs, ECR pull.
+
+Parameters:
+  DatasetsBucket:
+    Type: String
+  ModelsBucket:
+    Type: String
+  MlflowArtifactsBucket:
+    Type: String
+
+Resources:
+  SageMakerExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: SageMakerExecutionRole
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: sagemaker.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: FLOMLTraining
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: S3TrainArtifacts
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub arn:aws:s3:::${DatasetsBucket}
+                  - !Sub arn:aws:s3:::${DatasetsBucket}/*
+                  - !Sub arn:aws:s3:::${ModelsBucket}
+                  - !Sub arn:aws:s3:::${ModelsBucket}/*
+                  - !Sub arn:aws:s3:::${MlflowArtifactsBucket}
+                  - !Sub arn:aws:s3:::${MlflowArtifactsBucket}/*
+              - Sid: Logs
+                Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: "*"
+              - Sid: EcrPull
+                Effect: Allow
+                Action:
+                  - ecr:GetAuthorizationToken
+                  - ecr:BatchGetImage
+                  - ecr:GetDownloadUrlForLayer
+                Resource: "*"
+
+Outputs:
+  RoleArn:
+    Value: !GetAtt SageMakerExecutionRole.Arn

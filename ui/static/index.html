@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FLO-ML console</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #eef3ef;
+      --ink: #14231b;
+      --mute: #5b6b62;
+      --paper: #fbfdfb;
+      --line: #d4e0d8;
+      --mint: #0f6e56;
+      --mint-soft: #d8efe6;
+      --copper: #b45a1a;
+      --copper-soft: #f8eadb;
+      --bad: #a61b1b;
+      --bad-soft: #fde8e8;
+      --shadow: 0 12px 40px rgba(20, 35, 27, 0.08);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        radial-gradient(900px 380px at 100% -10%, #d7ebe2 0%, transparent 50%),
+        radial-gradient(700px 300px at -10% 20%, #efe4d4 0%, transparent 45%),
+        var(--bg);
+      font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+      line-height: 1.45;
+    }
+    .wrap { max-width: 1120px; margin: 0 auto; padding: 28px 20px 72px; }
+    .kicker {
+      margin: 0 0 6px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--mint);
+    }
+    h1 {
+      margin: 0;
+      font-size: clamp(28px, 4vw, 40px);
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+    }
+    .lede { max-width: 42rem; margin: 10px 0 0; color: var(--mute); font-size: 17px; }
+    .status-row {
+      display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px;
+    }
+    .pill {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 6px 10px; border: 1px solid var(--line); border-radius: 999px;
+      background: var(--paper); font-size: 12px; font-weight: 500; color: var(--mute);
+      text-decoration: none;
+    }
+    .pill .dot { width: 8px; height: 8px; border-radius: 50%; background: #c5d0c9; }
+    .pill.ok .dot { background: var(--mint); }
+    .pill.bad .dot { background: var(--bad); }
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin: 28px 0 22px;
+    }
+    .step {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px 14px 16px;
+      box-shadow: var(--shadow);
+    }
+    .step n { display: block; font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--mint); margin-bottom: 6px; }
+    .step h2 { margin: 0 0 6px; font-size: 15px; }
+    .step p { margin: 0; color: var(--mute); font-size: 13px; }
+    .grid {
+      display: grid;
+      grid-template-columns: 1.05fr 0.95fr;
+      gap: 16px;
+    }
+    .card {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: var(--shadow);
+    }
+    .card h3 { margin: 0 0 4px; font-size: 18px; }
+    .hint { margin: 0 0 14px; color: var(--mute); font-size: 13px; }
+    .explainer {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr 0.9fr;
+      gap: 12px;
+      margin: 0 0 18px;
+    }
+    .explainer ul { margin: 8px 0 0; padding-left: 18px; color: var(--mute); font-size: 13px; }
+    .explainer code { font-size: 12px; }
+    table.feat { font-size: 12px; }
+    table.feat th { white-space: nowrap; }
+    label { display: block; font-size: 12px; font-weight: 600; margin: 10px 0 4px; }
+    select, input[type="number"], input[type="text"] {
+      width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px;
+      font: inherit; background: #fff;
+    }
+    .modes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .mode {
+      cursor: pointer; border: 1px solid var(--line); border-radius: 12px; padding: 10px;
+      background: #fff;
+    }
+    .mode input { accent-color: var(--mint); }
+    .mode strong { display: block; font-size: 13px; }
+    .mode span { display: block; color: var(--mute); font-size: 12px; margin-top: 2px; }
+    .mode:has(input:checked) { border-color: var(--mint); background: var(--mint-soft); }
+    .hp { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    button {
+      font: inherit; font-weight: 600; border: 0; border-radius: 10px; cursor: pointer;
+      padding: 10px 14px;
+    }
+    .primary { background: var(--mint); color: #fff; margin-top: 14px; width: 100%; }
+    .primary:disabled { opacity: 0.55; cursor: not-allowed; }
+    .ghost { background: var(--copper-soft); color: var(--copper); }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+    .log {
+      margin-top: 12px; max-height: 220px; overflow: auto;
+      background: #14231b; color: #d7efe4; font-family: "IBM Plex Mono", monospace;
+      font-size: 11.5px; padding: 12px; border-radius: 10px; white-space: pre-wrap;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { color: var(--mute); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
+    a { color: var(--mint); }
+    .banner {
+      display: none; margin: 0 0 14px; padding: 10px 12px; border-radius: 10px; font-size: 13px;
+    }
+    .banner.show { display: block; }
+    .banner.ok { background: var(--mint-soft); color: var(--mint); }
+    .banner.err { background: var(--bad-soft); color: var(--bad); }
+    .score { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .result {
+      margin-top: 12px; padding: 12px; border-radius: 12px; background: var(--mint-soft);
+      display: none;
+    }
+    .result.show { display: block; }
+    .result .num { font-size: 28px; font-weight: 700; letter-spacing: -0.03em; }
+    footer { margin-top: 28px; color: var(--mute); font-size: 12px; }
+    @media (max-width: 900px) {
+      .flow, .grid, .modes, .hp, .score, .explainer { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <p class="kicker">Local-first MLOps</p>
+    <h1>FLO-ML console</h1>
+    <p class="lede">
+      Train a churn model on your laptop the same way you will later train it on SageMaker.
+      Data lives in a local AWS-shaped S3 (Floci). Every run is recorded in MLflow.
+      No real AWS account. No cloud bill.
+    </p>
+    <div class="status-row" id="status-row"></div>
+
+    <section class="flow" aria-label="What this console does">
+      <article class="step"><n>01 · data</n><h2>Floci S3</h2><p>Sample churn tables sit in <code>s3://datasets</code> on your machine, port 4566.</p></article>
+      <article class="step"><n>02 · train</n><h2>Same script</h2><p><code>src/train.py</code> runs on laptop Python or in the SageMaker-shaped container.</p></article>
+      <article class="step"><n>03 · track</n><h2>MLflow</h2><p>Params, metrics, and the model version land in the tracker on port 5000.</p></article>
+      <article class="step"><n>04 · gate</n><h2>Staging only</h2><p>Local runs can be tagged Staging. Production is blocked until you point at real AWS.</p></article>
+    </section>
+
+    <section class="explainer" id="model-card" aria-label="Data, algorithm, quality">
+      <article class="card">
+        <h3>What the churn data is</h3>
+        <p class="hint" id="data-blurb">Loading…</p>
+        <div style="overflow:auto">
+          <table class="feat">
+            <thead><tr><th>Column</th><th>Meaning</th></tr></thead>
+            <tbody id="feat-body"></tbody>
+          </table>
+        </div>
+      </article>
+      <article class="card">
+        <h3>How we train</h3>
+        <p class="hint" id="algo-blurb"></p>
+        <ul id="algo-steps"></ul>
+      </article>
+      <article class="card">
+        <h3>Quality checks</h3>
+        <p class="hint" id="gate-blurb"></p>
+        <ul id="quality-list"></ul>
+      </article>
+    </section>
+
+    <div class="grid">
+      <section class="card">
+        <h3>Run a training job</h3>
+        <p class="hint">Both buttons train the <strong>same</strong> sklearn model on the same S3 data. They only change <em>where Python runs</em>.</p>
+        <div class="banner" id="train-banner"></div>
+        <div class="modes">
+          <label class="mode">
+            <input type="radio" name="instance" value="process" checked />
+            <strong>Fast — laptop Python</strong>
+            <span>No image build. Best while you iterate. Needs Python packages on this machine if you started the console without Docker.</span>
+          </label>
+          <label class="mode">
+            <input type="radio" name="instance" value="local" />
+            <strong>Container — SageMaker-shaped</strong>
+            <span>Runs <code>flo-ml/sklearn-train:local</code>. This is the image you would ship to AWS.</span>
+          </label>
+        </div>
+        <div class="hp">
+          <div>
+            <label for="max_iter">Trees (max_iter)</label>
+            <input id="max_iter" type="number" min="10" max="400" value="80" />
+          </div>
+          <div>
+            <label for="max_depth">Max depth</label>
+            <input id="max_depth" type="number" min="1" max="12" value="3" />
+          </div>
+          <div>
+            <label for="learning_rate">Learning rate</label>
+            <input id="learning_rate" type="number" min="0.01" max="1" step="0.01" value="0.08" />
+          </div>
+          <div>
+            <label for="experiment">MLflow experiment</label>
+            <input id="experiment" type="text" value="churn" />
+          </div>
+        </div>
+        <button class="primary" id="run-btn" type="button">Train and log to MLflow</button>
+        <div class="log" id="log" hidden>waiting…</div>
+      </section>
+
+      <section class="card">
+        <h3>Score a customer</h3>
+        <p class="hint">Loads the latest registered <code>churn</code> model from MLflow and returns a churn probability.</p>
+        <div class="banner" id="score-banner"></div>
+        <form id="score-form" class="score"></form>
+        <div class="row">
+          <button class="primary" id="score-btn" type="button" style="width:auto">Score</button>
+          <button class="ghost" id="promote-btn" type="button">Promote latest → Staging</button>
+        </div>
+        <div class="result" id="score-result"></div>
+        <p class="hint" id="registry-line" style="margin-top:12px"></p>
+      </section>
+    </div>
+
+    <section class="card" style="margin-top:16px">
+      <h3>Recent MLflow runs</h3>
+      <p class="hint">These are the same records you will see in the MLflow UI. Open a run to inspect params, metrics, and the model artifact.</p>
+      <div style="overflow:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>When</th>
+              <th>Run</th>
+              <th>Where</th>
+              <th>ROC-AUC</th>
+              <th>Accuracy</th>
+              <th>Open</th>
+            </tr>
+          </thead>
+          <tbody id="runs-body">
+            <tr><td colspan="6">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer>
+      Floci is local AWS (S3/IAM), not a SageMaker API. Training compute is your laptop or a Docker container.
+      MLflow is the system of record. Production promotion is disabled while <code>ENV_NAME=local</code>.
+    </footer>
+  </div>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const FEATURES = [
+      ["tenure_months", "Tenure (months)"],
+      ["monthly_charges", "Monthly charges"],
+      ["total_charges", "Total charges"],
+      ["contract_month_to_month", "Month-to-month contract (0/1)"],
+      ["has_fiber", "Has fiber (0/1)"],
+      ["support_tickets", "Support tickets"],
+      ["late_payments", "Late payments"],
+      ["addon_count", "Add-on count"],
+    ];
+
+    function banner(el, kind, text) {
+      el.className = "banner show " + kind;
+      el.textContent = text;
+    }
+
+    function fmtTime(ms) {
+      if (!ms) return "—";
+      const d = new Date(ms);
+      return d.toLocaleString();
+    }
+
+    function errMsg(data, fallback) {
+      const detail = data && data.detail;
+      if (typeof detail === "string") return detail;
+      if (detail) return JSON.stringify(detail);
+      return (data && data.message) || fallback;
+    }
+    async function jget(path) {
+      const res = await fetch(path);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(errMsg(data, res.statusText));
+      return data;
+    }
+    async function jpost(path, body) {
+      const res = await fetch(path, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body || {}),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(errMsg(data, res.statusText));
+      return data;
+    }
+
+    function renderScoreForm(sample) {
+      const form = $("score-form");
+      form.innerHTML = FEATURES.map(([key, label]) => {
+        const val = sample[key] ?? "";
+        return `<div><label for="f-${key}">${label}</label><input id="f-${key}" name="${key}" type="number" step="any" value="${val}" /></div>`;
+      }).join("");
+    }
+
+    async function refreshStatus() {
+      const s = await jget("/api/status");
+      const row = $("status-row");
+      row.innerHTML = "";
+      const items = [
+        { ok: s.floci.ok, label: s.floci.ok ? "Floci S3 up" : "Floci down", href: s.floci.public_url },
+        { ok: s.mlflow.ok, label: s.mlflow.ok ? "MLflow up" : "MLflow down", href: s.mlflow.public_url },
+        { ok: s.scorer?.ok, label: s.scorer?.ok ? "Scoring client up" : "Scoring client down", href: s.scorer?.public_url },
+        { ok: s.trainer_image.present, label: s.trainer_image.present ? "Training image ready" : "Training image not built (Fast mode still works)", href: null },
+      ];
+      for (const item of items) {
+        const a = document.createElement(item.href ? "a" : "span");
+        a.className = "pill " + (item.ok ? "ok" : "bad");
+        a.innerHTML = `<span class="dot"></span>${item.label}`;
+        if (item.href) { a.href = item.href; a.target = "_blank"; }
+        row.appendChild(a);
+      }
+      if (s.floci.buckets?.length) {
+        const b = document.createElement("span");
+        b.className = "pill ok";
+        b.innerHTML = `<span class="dot"></span>buckets: ${s.floci.buckets.join(", ")}`;
+        row.appendChild(b);
+      }
+      renderScoreForm(s.sample_features || {});
+      return s;
+    }
+
+    async function refreshRuns() {
+      const data = await jget("/api/runs");
+      const body = $("runs-body");
+      if (!data.runs.length) {
+        body.innerHTML = `<tr><td colspan="6">No runs yet. Train once — the row will appear here and in MLflow.</td></tr>`;
+        return;
+      }
+      body.innerHTML = data.runs.map((r) => {
+        const inst = r.params.instance_type || "—";
+        const auc = r.metrics.valid_roc_auc != null ? r.metrics.valid_roc_auc.toFixed(3) : "—";
+        const acc = r.metrics.valid_accuracy != null ? r.metrics.valid_accuracy.toFixed(3) : "—";
+        return `<tr>
+          <td>${fmtTime(r.start_time)}</td>
+          <td><code>${r.run_id.slice(0, 8)}</code></td>
+          <td>${inst}</td>
+          <td>${auc}</td>
+          <td>${acc}</td>
+          <td><a href="${r.ui_url}" target="_blank" rel="noreferrer">MLflow</a></td>
+        </tr>`;
+      }).join("");
+    }
+
+    async function refreshRegistry() {
+      const data = await jget("/api/registry");
+      const aliases = Object.entries(data.aliases || {}).map(([a, v]) => `${a}=v${v}`).join(", ") || "none";
+      const latest = data.versions[0];
+      $("registry-line").textContent = latest
+        ? `Registered model “${data.name}” latest v${latest.version}. Aliases: ${aliases}.`
+        : "No registered model yet.";
+    }
+
+    async function pollJob(id) {
+      const log = $("log");
+      log.hidden = false;
+      for (;;) {
+        const job = await jget("/api/jobs/" + id);
+        log.textContent = (job.logs || []).join("\n") || "starting…";
+        log.scrollTop = log.scrollHeight;
+        if (job.status === "succeeded") {
+          const m = job.result || {};
+          banner($("train-banner"), "ok",
+            `Logged run ${m.mlflow_run_id || ""}. valid ROC-AUC ${m.valid_roc_auc?.toFixed?.(3) ?? m.valid_roc_auc ?? "—"}.`);
+          return job;
+        }
+        if (job.status === "failed") {
+          banner($("train-banner"), "err", job.error || "Training failed — see the log.");
+          throw new Error(job.error);
+        }
+        await new Promise((r) => setTimeout(r, 800));
+      }
+    }
+
+    $("run-btn").addEventListener("click", async () => {
+      const btn = $("run-btn");
+      btn.disabled = true;
+      $("train-banner").className = "banner";
+      try {
+        const instance = document.querySelector("input[name=instance]:checked").value;
+        const payload = {
+          instance,
+          experiment: $("experiment").value || "churn",
+          max_iter: Number($("max_iter").value),
+          max_depth: Number($("max_depth").value),
+          learning_rate: Number($("learning_rate").value),
+        };
+        const { job_id } = await jpost("/api/train", payload);
+        await pollJob(job_id);
+        await refreshRuns();
+        await refreshRegistry();
+        await refreshStatus();
+      } catch (err) {
+        banner($("train-banner"), "err", err.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    $("score-btn").addEventListener("click", async () => {
+      $("score-banner").className = "banner";
+      const features = {};
+      for (const [key] of FEATURES) {
+        features[key] = Number($( "f-" + key ).value);
+      }
+      try {
+        const out = await jpost("/api/predict", { features });
+        const box = $("score-result");
+        box.className = "result show";
+        box.innerHTML = `<div class="num">${(out.churn_probability * 100).toFixed(1)}%</div>
+          <div>${out.label} · model ${out.model_uri}</div>`;
+      } catch (err) {
+        banner($("score-banner"), "err", err.message);
+      }
+    });
+
+    $("promote-btn").addEventListener("click", async () => {
+      $("score-banner").className = "banner";
+      try {
+        const out = await jpost("/api/promote", { stage: "Staging", name: "churn" });
+        banner($("score-banner"), "ok", `Version ${out.version} aliased as ${out.alias}.`);
+        await refreshRegistry();
+      } catch (err) {
+        banner($("score-banner"), "err", err.message);
+      }
+    });
+
+    async function refreshModelCard() {
+      const card = await jget("/api/model-card");
+      $("data-blurb").textContent =
+        `${card.data.kind}. ${card.data.rows}. ${card.data.not} Target: ${card.target.meaning} ${card.target.prevalence}`;
+      $("feat-body").innerHTML = card.features.map((f) =>
+        `<tr><td><code>${f.name}</code></td><td>${f.meaning}</td></tr>`
+      ).join("");
+      const d = card.algorithm.defaults;
+      $("algo-blurb").textContent =
+        `${card.algorithm.name} (${card.algorithm.library}). ${card.algorithm.why}`;
+      $("algo-steps").innerHTML = card.algorithm.pipeline
+        .map((s) => `<li>${s}</li>`)
+        .concat([`<li>Defaults: depth ${d.max_depth}, lr ${d.learning_rate}, trees ${d.max_iter}, L2 ${d.l2_regularization}. Threshold ${card.algorithm.decision_threshold}.</li>`])
+        .join("");
+      const g = card.quality.gate;
+      $("gate-blurb").textContent =
+        `Primary gate: ${g.metric} ≥ ${g.minimum}. Fail → the job exits and nothing is promoted.`;
+      $("quality-list").innerHTML = card.quality.data_checks
+        .concat(card.quality.holdout_metrics)
+        .map((s) => `<li>${s}</li>`).join("");
+    }
+
+    (async () => {
+      try {
+        await refreshStatus();
+        await refreshModelCard();
+        await refreshRuns();
+        await refreshRegistry();
+      } catch (err) {
+        banner($("train-banner"), "err", "Console API is up but the stack is not ready: " + err.message);
+      }
+    })();
+  </script>
+</body>
+</html>

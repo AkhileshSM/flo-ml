@@ -1,0 +1,16 @@
+.git
+.github
+.venv
+venv
+__pycache__
+*.pyc
+.pytest_cache
+mlruns
+mlartifacts
+.env
+*.md
+.DS_Store
+infra/local/data
+data/floci
+.idea
+.vscode
