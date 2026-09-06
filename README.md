@@ -23,18 +23,61 @@ Floci is **not** SageMaker. It does not implement `CreateTrainingJob`. It stands
 
 The sample job is a small **churn classifier** (HistGradientBoosting) on an anonymized fixture. It is meant to prove the pipeline, not to be a production model.
 
+---
+
+## Architecture
+
+Interactive diagram (open in a browser):
+
+```bash
+open architecture.html
 ```
-  you (browser)
-       │
-       ▼
-  console :8088  ──► train src/train.py
-                       │
-          ┌────────────┼────────────┐
-          ▼            ▼            ▼
-     Floci :4566   MLflow :5000   model file
-     datasets/     runs + registry  s3://models/churn/<run>/
-     mlflow-artifacts/
+
+That file is the workbench map: **Local MLOps Stack** in the middle, **User (browser / CLI)** on the left.
+
+| Node | Kind | What it is |
+| --- | --- | --- |
+| **User** | External | You, via browser or CLI |
+| **FLO-ML Console** `:8088` | Frontend | Control surface — train, inspect runs, promote Staging |
+| **Training Engine** `src/train.py` | Backend | SageMaker-shaped entry point (laptop Python or the training image) |
+| **MLflow Server** `:5000` | Backend | Experiment tracking + model registry |
+| **Floci S3** `:4566` | Cloud (local) | AWS-shaped object store for datasets, artifacts, models |
+| **Scoring Client** `:8090` | Backend | Inference API — loads the registered model, does not train |
+
+Traffic in the diagram:
+
+```mermaid
+flowchart LR
+  user[User<br/>browser / CLI]
+  subgraph stack [Local MLOps Stack]
+    console[FLO-ML Console :8088]
+    trainer[Training Engine<br/>src/train.py]
+    mlflow[MLflow Server :5000]
+    floci[Floci S3 :4566]
+    scorer[Scoring Client :8090]
+  end
+  user -->|Manage Pipeline| console
+  user -->|Get Prediction| scorer
+  console -->|Trigger Train| trainer
+  trainer -->|S3 I/O datasets and models| floci
+  trainer -->|Log metrics / register| mlflow
+  scorer -->|Load registered model| mlflow
 ```
+
+| From → to | Label |
+| --- | --- |
+| User → Console | Manage pipeline |
+| User → Scoring client | Get prediction |
+| Console → Training engine | Trigger train |
+| Training engine → Floci | S3 I/O (datasets / models) |
+| Training engine → MLflow | Log metrics / register |
+| Scoring client → MLflow | Load registered model |
+
+Three jobs the stack is split into (same cards as in `architecture.html`):
+
+- **Control & train** — console triggers runs; trainer uses SageMaker-shaped entry points.
+- **Storage & tracking** — Floci emulates S3 for artifacts; MLflow tracks lineage.
+- **Inference** — scoring client is decoupled from training; registered models are promoted to Staging.
 
 Two training modes — **same script, same data, same MLflow experiment**:
 
@@ -131,6 +174,7 @@ curl -fsS http://localhost:8088/api/status | python3 -m json.tool | head
 
 | Open this | What it is |
 | --- | --- |
+| **`architecture.html`** | Interactive workbench diagram (open the file in a browser) |
 | **http://localhost:8088** | FLO-ML console — train, track, promote |
 | **http://localhost:8090** | Scoring **client** — consumes the registered model |
 | http://localhost:5000 | MLflow — run history, metrics, model versions |
@@ -223,6 +267,7 @@ Makefile shortcuts: `make up`, `make train-process`, `make train`, `make ui`, `m
 | `src/train.py` | SageMaker-shaped training entry point |
 | `jobs/estimator.py` | CLI runner (process / docker / later AWS) |
 | `configs/local.yaml` | Local environment contract |
+| `architecture.html` | Interactive architecture diagram |
 | `docker-compose.yml` | Floci + MLflow + console + scoring client |
 | `data/fixtures/` | Tiny anonymized churn CSVs (not production data) |
 | `infra/aws/` | IAM role shape for the real account (P1) |
